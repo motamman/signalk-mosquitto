@@ -1,0 +1,9 @@
+node_modules/
+plugin/
+public/js/
+*.md
+*.json
+.git/
+.eslintcache
+coverage/
+dist/

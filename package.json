@@ -1,0 +1,84 @@
+{
+  "name": "signalk-mosquitto",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "SignalK plugin for managing Mosquitto MQTT broker with bridge connections and security",
+  "keywords": [
+    "signalk-node-server-plugin",
+    "signalk-category-connectivity",
+    "mqtt",
+    "mosquitto",
+    "iot"
+  ],
+  "main": "plugin/index.js",
+  "scripts": {
+    "build": "npm run clean && npm run lint && npm run typecheck && tsc && webpack --mode=production",
+    "build:dev": "npm run clean && tsc && webpack --mode=development",
+    "watch": "tsc --watch",
+    "dev": "concurrently \"npm run watch\" \"webpack --mode=development --watch\"",
+    "clean": "rm -rf plugin/ public/js/",
+    "lint": "eslint src/**/*.ts --fix",
+    "lint:check": "eslint src/**/*.ts",
+    "format": "prettier --write src/**/*.ts public/**/*.{html,css,js}",
+    "format:check": "prettier --check src/**/*.ts public/**/*.{html,css,js}",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run lint:check && npm run format:check && npm run typecheck",
+    "prepare": "husky",
+    "postinstall": "husky install",
+    "ci": "npm run test && npm run build"
+  },
+  "author": "Zennora",
+  "license": "MIT",
+  "signalk-plugin-enabled-by-default": false,
+  "dependencies": {
+    "@signalk/server-api": "^1.0.0",
+    "mqtt": "^5.10.1",
+    "node-forge": "^1.3.1",
+    "fs-extra": "^11.2.0",
+    "lodash": "^4.17.21",
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.5",
+    "@types/express": "^4.17.21",
+    "@types/fs-extra": "^11.0.4",
+    "@types/lodash": "^4.17.10",
+    "@types/node-forge": "^1.3.11",
+    "@eslint/js": "^9.12.0",
+    "@typescript-eslint/eslint-plugin": "^8.8.1",
+    "@typescript-eslint/parser": "^8.8.1",
+    "concurrently": "^9.0.1",
+    "eslint": "^9.12.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "husky": "^9.1.6",
+    "lint-staged": "^15.2.10",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3",
+    "webpack": "^5.95.0",
+    "webpack-cli": "^5.1.4",
+    "ts-loader": "^9.5.1"
+  },
+  "lint-staged": {
+    "src/**/*.ts": [
+      "eslint --fix",
+      "prettier --write",
+      "git add"
+    ],
+    "public/**/*.{html,css,js}": [
+      "prettier --write",
+      "git add"
+    ]
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zennora/signalk-mosquitto.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zennora/signalk-mosquitto/issues"
+  },
+  "homepage": "https://github.com/zennora/signalk-mosquitto#readme"
+}

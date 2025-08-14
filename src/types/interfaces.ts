@@ -1,0 +1,113 @@
+// Types and interfaces for SignalK Mosquitto plugin
+
+export interface MosquittoPluginConfig {
+  enabled: boolean;
+  brokerPort: number;
+  brokerHost: string;
+  enableWebsockets: boolean;
+  websocketPort: number;
+  maxConnections: number;
+  allowAnonymous: boolean;
+  enableLogging: boolean;
+  logLevel: 'error' | 'warning' | 'notice' | 'information' | 'debug';
+  persistence: boolean;
+  persistenceLocation: string;
+  enableSecurity: boolean;
+  tlsEnabled: boolean;
+  tlsCertPath: string;
+  tlsKeyPath: string;
+  tlsCaPath: string;
+  bridges: BridgeConfig[];
+  users: UserConfig[];
+  acls: AclConfig[];
+}
+
+export interface BridgeConfig {
+  id: string;
+  enabled: boolean;
+  name: string;
+  remoteHost: string;
+  remotePort: number;
+  remoteUsername?: string;
+  remotePassword?: string;
+  topics: BridgeTopicConfig[];
+  tlsEnabled: boolean;
+  tlsCertPath?: string;
+  tlsKeyPath?: string;
+  tlsCaPath?: string;
+  keepalive: number;
+  cleanSession: boolean;
+  tryPrivate: boolean;
+}
+
+export interface BridgeTopicConfig {
+  pattern: string;
+  direction: 'in' | 'out' | 'both';
+  qos: 0 | 1 | 2;
+  localPrefix?: string;
+  remotePrefix?: string;
+}
+
+export interface UserConfig {
+  username: string;
+  password: string;
+  enabled: boolean;
+}
+
+export interface AclConfig {
+  username?: string;
+  clientid?: string;
+  topic: string;
+  access: 'read' | 'write' | 'readwrite';
+}
+
+export interface MosquittoStatus {
+  running: boolean;
+  pid?: number;
+  uptime?: number;
+  version?: string;
+  connectedClients: number;
+  totalConnections: number;
+  messagesReceived: number;
+  messagesPublished: number;
+  bytesReceived: number;
+  bytesPublished: number;
+}
+
+export interface MosquittoManager {
+  start(): Promise<void>;
+  stop(): Promise<void>;
+  restart(): Promise<void>;
+  getStatus(): Promise<MosquittoStatus>;
+  generateConfig(config: MosquittoPluginConfig): Promise<string>;
+  writeConfig(configContent: string): Promise<void>;
+  validateConfig(): Promise<boolean>;
+}
+
+export interface BridgeManager {
+  addBridge(bridge: BridgeConfig): Promise<void>;
+  removeBridge(bridgeId: string): Promise<void>;
+  updateBridge(bridgeId: string, bridge: BridgeConfig): Promise<void>;
+  getBridges(): Promise<BridgeConfig[]>;
+  testBridgeConnection(bridge: BridgeConfig): Promise<boolean>;
+}
+
+export interface SecurityManager {
+  addUser(user: UserConfig): Promise<void>;
+  removeUser(username: string): Promise<void>;
+  updateUser(username: string, user: UserConfig): Promise<void>;
+  getUsers(): Promise<UserConfig[]>;
+  hashPassword(password: string): Promise<string>;
+  addAcl(acl: AclConfig): Promise<void>;
+  removeAcl(acl: AclConfig): Promise<void>;
+  getAcls(): Promise<AclConfig[]>;
+  generateCertificates(): Promise<void>;
+  validateCertificates(): Promise<boolean>;
+}
+
+export interface ProcessMonitor {
+  start(): void;
+  stop(): void;
+  isHealthy(): Promise<boolean>;
+  getMetrics(): Promise<MosquittoStatus>;
+}

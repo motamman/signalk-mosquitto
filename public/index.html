@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mosquitto MQTT Broker Manager</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <h1><i class="fas fa-satellite-dish"></i> Mosquitto MQTT Broker Manager</h1>
+        <div class="status-indicator" id="statusIndicator">
+          <i class="fas fa-circle"></i>
+          <span id="statusText">Loading...</span>
+        </div>
+      </header>
+
+      <nav class="tab-nav">
+        <button class="tab-button active" data-tab="overview">
+          <i class="fas fa-dashboard"></i> Overview
+        </button>
+        <button class="tab-button" data-tab="configuration">
+          <i class="fas fa-cog"></i> Configuration
+        </button>
+        <button class="tab-button" data-tab="bridges">
+          <i class="fas fa-network-wired"></i> Bridges
+        </button>
+        <button class="tab-button" data-tab="security">
+          <i class="fas fa-shield-alt"></i> Security
+        </button>
+        <button class="tab-button" data-tab="monitoring">
+          <i class="fas fa-chart-line"></i> Monitoring
+        </button>
+      </nav>
+
+      <main id="content">
+        <!-- Overview Tab -->
+        <div class="tab-content active" id="overview">
+          <div class="card-grid">
+            <div class="card">
+              <h3><i class="fas fa-info-circle"></i> Broker Status</h3>
+              <div class="status-grid">
+                <div class="status-item">
+                  <span class="label">Status:</span>
+                  <span id="brokerStatus" class="value">Unknown</span>
+                </div>
+                <div class="status-item">
+                  <span class="label">Version:</span>
+                  <span id="brokerVersion" class="value">Unknown</span>
+                </div>
+                <div class="status-item">
+                  <span class="label">Uptime:</span>
+                  <span id="brokerUptime" class="value">Unknown</span>
+                </div>
+                <div class="status-item">
+                  <span class="label">PID:</span>
+                  <span id="brokerPid" class="value">Unknown</span>
+                </div>
+              </div>
+              <div class="actions">
+                <button id="restartBtn" class="btn btn-warning">
+                  <i class="fas fa-redo"></i> Restart
+                </button>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3><i class="fas fa-users"></i> Connections</h3>
+              <div class="status-grid">
+                <div class="status-item">
+                  <span class="label">Connected Clients:</span>
+                  <span id="connectedClients" class="value">0</span>
+                </div>
+                <div class="status-item">
+                  <span class="label">Total Connections:</span>
+                  <span id="totalConnections" class="value">0</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3><i class="fas fa-envelope"></i> Messages</h3>
+              <div class="status-grid">
+                <div class="status-item">
+                  <span class="label">Messages Received:</span>
+                  <span id="messagesReceived" class="value">0</span>
+                </div>
+                <div class="status-item">
+                  <span class="label">Messages Published:</span>
+                  <span id="messagesPublished" class="value">0</span>
+                </div>
+                <div class="status-item">
+                  <span class="label">Bytes Received:</span>
+                  <span id="bytesReceived" class="value">0</span>
+                </div>
+                <div class="status-item">
+                  <span class="label">Bytes Published:</span>
+                  <span id="bytesPublished" class="value">0</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3><i class="fas fa-network-wired"></i> Bridge Status</h3>
+              <div id="bridgeOverview">
+                <p class="text-muted">No bridges configured</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Configuration Tab -->
+        <div class="tab-content" id="configuration">
+          <div class="card">
+            <h3><i class="fas fa-cog"></i> Broker Configuration</h3>
+            <form id="configForm">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="brokerPort">MQTT Port:</label>
+                  <input type="number" id="brokerPort" min="1" max="65535" value="1883" />
+                </div>
+                <div class="form-group">
+                  <label for="brokerHost">Bind Address:</label>
+                  <input type="text" id="brokerHost" value="0.0.0.0" />
+                </div>
+                <div class="form-group">
+                  <label for="maxConnections">Max Connections:</label>
+                  <input type="number" id="maxConnections" min="1" value="1000" />
+                </div>
+                <div class="form-group">
+                  <label for="logLevel">Log Level:</label>
+                  <select id="logLevel">
+                    <option value="error">Error</option>
+                    <option value="warning">Warning</option>
+                    <option value="notice">Notice</option>
+                    <option value="information" selected>Information</option>
+                    <option value="debug">Debug</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-section">
+                <h4>WebSocket Settings</h4>
+                <div class="form-group checkbox-group">
+                  <input type="checkbox" id="enableWebsockets" checked />
+                  <label for="enableWebsockets">Enable WebSocket Support</label>
+                </div>
+                <div class="form-group">
+                  <label for="websocketPort">WebSocket Port:</label>
+                  <input type="number" id="websocketPort" min="1" max="65535" value="9001" />
+                </div>
+              </div>
+
+              <div class="form-section">
+                <h4>Persistence Settings</h4>
+                <div class="form-group checkbox-group">
+                  <input type="checkbox" id="persistence" checked />
+                  <label for="persistence">Enable Message Persistence</label>
+                </div>
+                <div class="form-group">
+                  <label for="persistenceLocation">Persistence Database Path:</label>
+                  <input type="text" id="persistenceLocation" value="/tmp/mosquitto.db" />
+                </div>
+              </div>
+
+              <div class="form-section">
+                <h4>TLS/SSL Settings</h4>
+                <div class="form-group checkbox-group">
+                  <input type="checkbox" id="tlsEnabled" />
+                  <label for="tlsEnabled">Enable TLS/SSL</label>
+                </div>
+                <div class="form-group">
+                  <label for="tlsCertPath">Certificate Path:</label>
+                  <input type="text" id="tlsCertPath" placeholder="/path/to/cert.pem" />
+                </div>
+                <div class="form-group">
+                  <label for="tlsKeyPath">Private Key Path:</label>
+                  <input type="text" id="tlsKeyPath" placeholder="/path/to/key.pem" />
+                </div>
+                <div class="form-group">
+                  <label for="tlsCaPath">CA Certificate Path:</label>
+                  <input type="text" id="tlsCaPath" placeholder="/path/to/ca.pem" />
+                </div>
+                <div class="actions">
+                  <button type="button" id="generateCertsBtn" class="btn btn-secondary">
+                    <i class="fas fa-certificate"></i> Generate Self-Signed Certificates
+                  </button>
+                </div>
+              </div>
+
+              <div class="actions">
+                <button type="submit" class="btn btn-primary">
+                  <i class="fas fa-save"></i> Save Configuration
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Bridges Tab -->
+        <div class="tab-content" id="bridges">
+          <div class="card">
+            <div class="card-header">
+              <h3><i class="fas fa-network-wired"></i> Bridge Connections</h3>
+              <button id="addBridgeBtn" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Add Bridge
+              </button>
+            </div>
+            <div id="bridgeList" class="list-container">
+              <p class="text-muted">No bridges configured</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Security Tab -->
+        <div class="tab-content" id="security">
+          <div class="card-grid">
+            <div class="card">
+              <div class="card-header">
+                <h3><i class="fas fa-users"></i> Users</h3>
+                <button id="addUserBtn" class="btn btn-primary">
+                  <i class="fas fa-plus"></i> Add User
+                </button>
+              </div>
+              <div id="userList" class="list-container">
+                <p class="text-muted">No users configured</p>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h3><i class="fas fa-shield-alt"></i> Access Control</h3>
+                <button id="addAclBtn" class="btn btn-primary">
+                  <i class="fas fa-plus"></i> Add ACL Rule
+                </button>
+              </div>
+              <div id="aclList" class="list-container">
+                <p class="text-muted">No ACL rules configured</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Monitoring Tab -->
+        <div class="tab-content" id="monitoring">
+          <div class="card">
+            <h3><i class="fas fa-chart-line"></i> Real-time Monitoring</h3>
+            <div class="monitoring-controls">
+              <button id="refreshBtn" class="btn btn-secondary">
+                <i class="fas fa-refresh"></i> Refresh
+              </button>
+              <label>
+                <input type="checkbox" id="autoRefresh" checked />
+                Auto-refresh (10s)
+              </label>
+            </div>
+            <div class="metrics-grid">
+              <div class="metric-card">
+                <h4>Connection Rate</h4>
+                <div class="metric-value" id="connectionRate">0/min</div>
+              </div>
+              <div class="metric-card">
+                <h4>Message Rate</h4>
+                <div class="metric-value" id="messageRate">0/min</div>
+              </div>
+              <div class="metric-card">
+                <h4>Data Rate</h4>
+                <div class="metric-value" id="dataRate">0 KB/s</div>
+              </div>
+              <div class="metric-card">
+                <h4>Monitor Status</h4>
+                <div class="metric-value" id="monitorStatus">Unknown</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="bridgeModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="bridgeModalTitle">Add Bridge</h3>
+          <button class="modal-close">&times;</button>
+        </div>
+        <form id="bridgeForm">
+          <div class="form-group">
+            <label for="bridgeName">Bridge Name:</label>
+            <input type="text" id="bridgeName" required />
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="remoteHost">Remote Host:</label>
+              <input type="text" id="remoteHost" required />
+            </div>
+            <div class="form-group">
+              <label for="remotePort">Remote Port:</label>
+              <input type="number" id="remotePort" min="1" max="65535" value="1883" />
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="remoteUsername">Username:</label>
+              <input type="text" id="remoteUsername" />
+            </div>
+            <div class="form-group">
+              <label for="remotePassword">Password:</label>
+              <input type="password" id="remotePassword" />
+            </div>
+          </div>
+          <div class="form-section">
+            <h4>Topics</h4>
+            <div id="topicList">
+              <div class="topic-row">
+                <input type="text" placeholder="Topic pattern" class="topic-pattern" />
+                <select class="topic-direction">
+                  <option value="both">Both</option>
+                  <option value="in">In</option>
+                  <option value="out">Out</option>
+                </select>
+                <select class="topic-qos">
+                  <option value="0">QoS 0</option>
+                  <option value="1">QoS 1</option>
+                  <option value="2">QoS 2</option>
+                </select>
+                <button type="button" class="btn btn-danger btn-sm remove-topic">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </div>
+            <button type="button" id="addTopicBtn" class="btn btn-secondary btn-sm">
+              <i class="fas fa-plus"></i> Add Topic
+            </button>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" data-action="cancel">Cancel</button>
+            <button type="button" id="testBridgeBtn" class="btn btn-info">Test Connection</button>
+            <button type="submit" class="btn btn-primary">Save Bridge</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="userModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="userModalTitle">Add User</h3>
+          <button class="modal-close">&times;</button>
+        </div>
+        <form id="userForm">
+          <div class="form-group">
+            <label for="username">Username:</label>
+            <input type="text" id="username" required />
+          </div>
+          <div class="form-group">
+            <label for="password">Password:</label>
+            <input type="password" id="password" required />
+          </div>
+          <div class="form-group checkbox-group">
+            <input type="checkbox" id="userEnabled" checked />
+            <label for="userEnabled">Enabled</label>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" data-action="cancel">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save User</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="aclModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Add ACL Rule</h3>
+          <button class="modal-close">&times;</button>
+        </div>
+        <form id="aclForm">
+          <div class="form-group">
+            <label for="aclUsername">Username (optional):</label>
+            <input type="text" id="aclUsername" />
+          </div>
+          <div class="form-group">
+            <label for="aclClientId">Client ID (optional):</label>
+            <input type="text" id="aclClientId" />
+          </div>
+          <div class="form-group">
+            <label for="aclTopic">Topic Pattern:</label>
+            <input type="text" id="aclTopic" required placeholder="e.g., sensors/+/temperature" />
+          </div>
+          <div class="form-group">
+            <label for="aclAccess">Access Level:</label>
+            <select id="aclAccess">
+              <option value="read">Read</option>
+              <option value="write">Write</option>
+              <option value="readwrite">Read/Write</option>
+            </select>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" data-action="cancel">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save ACL Rule</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="loadingOverlay" class="loading-overlay">
+      <div class="loading-spinner">
+        <i class="fas fa-spinner fa-spin"></i>
+        <p>Loading...</p>
+      </div>
+    </div>
+
+    <script src="js/app.js"></script>
+  </body>
+</html>

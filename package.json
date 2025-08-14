@@ -27,7 +27,7 @@
     "postinstall": "husky install",
     "ci": "npm run test && npm run build"
   },
-  "author": "Zennora",
+  "author": "Maurice Tamman",
   "license": "MIT",
   "signalk-plugin-enabled-by-default": false,
   "dependencies": {
@@ -75,10 +75,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/zennora/signalk-mosquitto.git"
+    "url": "https://github.com/motamman/signalk-mosquitto.git"
   },
   "bugs": {
-    "url": "https://github.com/zennora/signalk-mosquitto/issues"
+    "url": "https://github.com/motamman/signalk-mosquitto/issues"
   },
-  "homepage": "https://github.com/zennora/signalk-mosquitto#readme"
+  "homepage": "https://github.com/motamman/signalk-mosquitto#readme"
 }

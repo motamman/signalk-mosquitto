@@ -346,7 +346,6 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 - **Issues**: [GitHub Issues](https://github.com/motamman/signalk-mosquitto/issues)
 - **Documentation**: This README and inline code comments
-- **SignalK Community**: [SignalK Slack](https://signalk-dev.slack.com/)
 
 ## Changelog
 

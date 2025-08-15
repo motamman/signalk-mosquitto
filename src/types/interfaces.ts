@@ -74,11 +74,19 @@ export interface MosquittoStatus {
   bytesPublished: number;
 }
 
+export interface MonitoringMetrics {
+  connectionRate: string;
+  messageRate: string;
+  dataRate: string;
+  monitorStatus: string;
+}
+
 export interface MosquittoManager {
   start(): Promise<void>;
   stop(): Promise<void>;
   restart(): Promise<void>;
   getStatus(): Promise<MosquittoStatus>;
+  getMonitoringMetrics(): Promise<MonitoringMetrics>;
   generateConfig(config: MosquittoPluginConfig): Promise<string>;
   writeConfig(configContent: string): Promise<void>;
   validateConfig(): Promise<boolean>;

@@ -1,10 +1,10 @@
 {
-  "name": "signalk-mosquitto",
-  "type": "module",
-  "version": "1.0.0",
+  "name": "signalk-mqtt-mosquitto",
+  "version": "0.5.0-beta.1",
   "description": "SignalK plugin for managing Mosquitto MQTT broker with bridge connections and security",
   "keywords": [
     "signalk-node-server-plugin",
+    "signalk-webapp",
     "signalk-category-connectivity",
     "mqtt",
     "mosquitto",
@@ -30,6 +30,12 @@
   "author": "Maurice Tamman",
   "license": "MIT",
   "signalk-plugin-enabled-by-default": false,
+  "signalk": {
+    "appSupport": "webapp",
+    "compatibility": ">=1.0.0",
+    "displayName": "SignalK MQTT Mosquitto Manager",
+    "appIcon": "mosquitto.png"
+  },
   "dependencies": {
     "@signalk/server-api": "^1.0.0",
     "mqtt": "^5.10.1",

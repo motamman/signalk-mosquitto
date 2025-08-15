@@ -56,7 +56,7 @@ class MosquittoManager {
   private currentTab: string = 'overview';
 
   constructor() {
-    this.baseUrl = window.location.origin;
+    this.baseUrl = '/plugins/signalk-mosquitto';
     this.init();
   }
 
@@ -673,11 +673,22 @@ class MosquittoManager {
   }
 
   private async loadMonitoringData(): Promise<void> {
-    // Implementation would load monitoring metrics
-    this.updateElement('connectionRate', '0/min');
-    this.updateElement('messageRate', '0/min');
-    this.updateElement('dataRate', '0 KB/s');
-    this.updateElement('monitorStatus', 'Active');
+    try {
+      const response = await fetch(`${this.baseUrl}/monitoring`);
+      if (!response.ok) throw new Error('Failed to fetch monitoring data');
+
+      const monitoring = await response.json();
+      this.updateElement('connectionRate', monitoring.connectionRate);
+      this.updateElement('messageRate', monitoring.messageRate);
+      this.updateElement('dataRate', monitoring.dataRate);
+      this.updateElement('monitorStatus', monitoring.monitorStatus);
+    } catch (error) {
+      console.error('Failed to load monitoring data:', error);
+      this.updateElement('connectionRate', '0');
+      this.updateElement('messageRate', '0/min');
+      this.updateElement('dataRate', '0 KB/s');
+      this.updateElement('monitorStatus', 'Error');
+    }
   }
 
   private startAutoRefresh(): void {

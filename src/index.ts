@@ -15,7 +15,7 @@ const defaultConfig: MosquittoPluginConfig = {
   enableWebsockets: true,
   websocketPort: 9001,
   maxConnections: 1000,
-  allowAnonymous: false,
+  allowAnonymous: true,
   enableLogging: true,
   logLevel: 'information',
   persistence: true,
@@ -30,7 +30,7 @@ const defaultConfig: MosquittoPluginConfig = {
   acls: []
 };
 
-module.exports = (app: PluginServerApp): Plugin => {
+function plugin(app: PluginServerApp): Plugin {
   let mosquittoManager: MosquittoManagerImpl;
   let bridgeManager: BridgeManagerImpl;
   let securityManager: SecurityManagerImpl;
@@ -38,9 +38,9 @@ module.exports = (app: PluginServerApp): Plugin => {
   let mosquittoInstaller: MosquittoInstaller;
   let currentConfig: MosquittoPluginConfig;
 
-  const plugin: Plugin = {
+  const pluginInstance: Plugin = {
     id: 'signalk-mosquitto',
-    name: 'Mosquitto MQTT Broker Manager',
+    name: 'SignalK MQTT Mosquitto Manager',
 
     schema: (): object => ({
       type: 'object',
@@ -242,6 +242,12 @@ module.exports = (app: PluginServerApp): Plugin => {
 
 
     registerWithRouter: (router: express.Router): void => {
+      // Serve the main web interface at the root of the plugin path
+      router.get('/', (_req, res) => {
+        res.sendFile(path.resolve(__dirname, '..', 'public', 'index.html'));
+      });
+
+      // API routes
       router.get('/status', async (_req, res) => {
         try {
           if (!mosquittoManager) {
@@ -299,11 +305,32 @@ module.exports = (app: PluginServerApp): Plugin => {
         }
       });
 
+      router.get('/monitoring', async (_req, res) => {
+        try {
+          if (!mosquittoManager) {
+            return res.status(503).json({ error: 'Mosquitto manager not initialized' });
+          }
+          
+          const monitoring = await mosquittoManager.getMonitoringMetrics();
+          res.json(monitoring);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          res.status(500).json({ error: errorMessage });
+        }
+      });
+
       // Serve static files for the web interface
       const staticPath = path.resolve(__dirname, '..', 'public');
       router.use(express.static(staticPath));
+    },
+
+    signalKApiRoutes: (router: express.Router): express.Router => {
+      console.log('Webapp API routes registered');
+      return router;
     }
   };
 
-  return plugin;
-};
+  return pluginInstance;
+}
+
+module.exports = plugin;

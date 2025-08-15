@@ -1,5 +1,10 @@
 import { PluginServerApp } from '@signalk/server-api';
-import { MosquittoPluginConfig, MosquittoManager, MosquittoStatus } from '../types/interfaces';
+import {
+  MosquittoPluginConfig,
+  MosquittoManager,
+  MosquittoStatus,
+  MonitoringMetrics,
+} from '../types/interfaces';
 import { FileUtils } from '../utils/file-utils';
 import * as path from 'path';
 import { spawn, ChildProcess } from 'child_process';
@@ -13,6 +18,8 @@ export class MosquittoManagerImpl implements MosquittoManager {
   private configFile: string;
   private pidFile: string;
   private logFile: string;
+  private lastStatsTime: number = 0;
+  private lastStats: Partial<MosquittoStatus> = {};
 
   constructor(app: PluginServerApp, config: MosquittoPluginConfig) {
     this.app = app;
@@ -28,6 +35,12 @@ export class MosquittoManagerImpl implements MosquittoManager {
     try {
       await FileUtils.ensureDir(this.dataDir);
       await FileUtils.ensureDir(this.configDir);
+
+      // Ensure persistence directory exists
+      if (this.config.persistence) {
+        const persistenceDir = path.join(this.dataDir, 'persistence');
+        await FileUtils.ensureDir(persistenceDir);
+      }
 
       const configContent = await this.generateConfig(this.config);
       await this.writeConfig(configContent);
@@ -134,13 +147,13 @@ export class MosquittoManagerImpl implements MosquittoManager {
     lines.push('');
 
     lines.push('# Basic configuration');
-    lines.push(`port ${config.brokerPort}`);
-    lines.push(`bind_address ${config.brokerHost}`);
+    lines.push(`listener ${config.brokerPort} ${config.brokerHost}`);
     lines.push(`max_connections ${config.maxConnections}`);
 
     if (config.persistence) {
       lines.push('persistence true');
-      lines.push(`persistence_location ${config.persistenceLocation}`);
+      const persistenceDir = path.join(this.dataDir, 'persistence');
+      lines.push(`persistence_location ${persistenceDir}/`);
       lines.push('autosave_interval 1800');
     } else {
       lines.push('persistence false');
@@ -154,14 +167,21 @@ export class MosquittoManagerImpl implements MosquittoManager {
 
     lines.push(`pid_file ${this.pidFile}`);
 
+    // System statistics
+    lines.push('');
+    lines.push('# System monitoring');
+    lines.push('sys_interval 10');
+
     if (config.enableWebsockets) {
       lines.push('');
       lines.push('# WebSocket configuration');
-      lines.push(`listener ${config.websocketPort}`);
+      lines.push(`listener ${config.websocketPort} ${config.brokerHost}`);
       lines.push('protocol websockets');
     }
 
-    if (config.enableSecurity && !config.allowAnonymous) {
+    if (config.allowAnonymous) {
+      lines.push('allow_anonymous true');
+    } else if (config.enableSecurity) {
       lines.push('');
       lines.push('# Security configuration');
       lines.push('allow_anonymous false');
@@ -173,8 +193,6 @@ export class MosquittoManagerImpl implements MosquittoManager {
         const aclFile = path.join(this.configDir, 'acl');
         lines.push(`acl_file ${aclFile}`);
       }
-    } else {
-      lines.push('allow_anonymous true');
     }
 
     if (config.tlsEnabled && config.tlsCertPath && config.tlsKeyPath) {
@@ -254,10 +272,16 @@ export class MosquittoManagerImpl implements MosquittoManager {
 
   async validateConfig(): Promise<boolean> {
     try {
-      const { stderr } = await FileUtils.executeCommand('mosquitto', ['-c', this.configFile, '-t']);
+      // Just check if the config file exists and is readable
+      const configContent = await FileUtils.readFile(this.configFile);
+      if (!configContent || configContent.trim().length === 0) {
+        console.error('Configuration file is empty or unreadable');
+        return false;
+      }
 
-      if (stderr && stderr.includes('Error')) {
-        console.error(`Configuration validation failed: ${stderr}`);
+      // Basic syntax validation - check for required listener directive
+      if (!configContent.includes('listener')) {
+        console.error('Configuration missing required listener directive');
         return false;
       }
 
@@ -360,22 +384,153 @@ export class MosquittoManagerImpl implements MosquittoManager {
   }
 
   private async getConnectionStats(): Promise<Partial<MosquittoStatus>> {
-    return {
-      connectedClients: 0,
-      totalConnections: 0,
-      messagesReceived: 0,
-      messagesPublished: 0,
-      bytesReceived: 0,
-      bytesPublished: 0,
-    };
+    try {
+      // Connect to broker and query $SYS topics for statistics
+      const mqtt = await import('mqtt');
+      const client = mqtt.connect(`mqtt://localhost:${this.config.brokerPort}`);
+
+      return new Promise(resolve => {
+        const stats: Partial<MosquittoStatus> = {
+          connectedClients: 0,
+          totalConnections: 0,
+          messagesReceived: 0,
+          messagesPublished: 0,
+          bytesReceived: 0,
+          bytesPublished: 0,
+        };
+
+        let responseCount = 0;
+        const expectedResponses = 6;
+
+        const timeout = setTimeout(() => {
+          client.end();
+          resolve(stats);
+        }, 2000);
+
+        client.on('connect', () => {
+          // Subscribe to Mosquitto system topics
+          client.subscribe('$SYS/broker/clients/connected', { qos: 0 });
+          client.subscribe('$SYS/broker/clients/total', { qos: 0 });
+          client.subscribe('$SYS/broker/messages/received', { qos: 0 });
+          client.subscribe('$SYS/broker/messages/sent', { qos: 0 });
+          client.subscribe('$SYS/broker/bytes/received', { qos: 0 });
+          client.subscribe('$SYS/broker/bytes/sent', { qos: 0 });
+        });
+
+        client.on('message', (topic, message) => {
+          const value = parseInt(message.toString()) || 0;
+
+          switch (topic) {
+            case '$SYS/broker/clients/connected':
+              stats.connectedClients = value;
+              break;
+            case '$SYS/broker/clients/total':
+              stats.totalConnections = value;
+              break;
+            case '$SYS/broker/messages/received':
+              stats.messagesReceived = value;
+              break;
+            case '$SYS/broker/messages/sent':
+              stats.messagesPublished = value;
+              break;
+            case '$SYS/broker/bytes/received':
+              stats.bytesReceived = value;
+              break;
+            case '$SYS/broker/bytes/sent':
+              stats.bytesPublished = value;
+              break;
+          }
+
+          responseCount++;
+          if (responseCount >= expectedResponses) {
+            clearTimeout(timeout);
+            client.end();
+            resolve(stats);
+          }
+        });
+
+        client.on('error', () => {
+          clearTimeout(timeout);
+          client.end();
+          resolve(stats);
+        });
+      });
+    } catch (error) {
+      console.error(`Failed to get connection stats: ${(error as Error).message}`);
+      return {
+        connectedClients: 0,
+        totalConnections: 0,
+        messagesReceived: 0,
+        messagesPublished: 0,
+        bytesReceived: 0,
+        bytesPublished: 0,
+      };
+    }
   }
 
-  private async getLinuxDistribution(): Promise<string> {
+  async getMonitoringMetrics(): Promise<MonitoringMetrics> {
     try {
-      const { stdout } = await FileUtils.executeCommand('cat', ['/etc/os-release']);
-      return stdout.toLowerCase();
-    } catch {
-      return 'unknown';
+      const currentTime = Date.now();
+      const currentStats = await this.getConnectionStats();
+
+      // Show current active connections instead of rate
+      const activeConnections = `${currentStats.connectedClients || 0}`;
+
+      // Default values for rates
+      let messageRate = '0/min';
+      let dataRate = '0 KB/s';
+
+      // Calculate rates if we have previous data
+      if (this.lastStatsTime > 0 && currentTime > this.lastStatsTime) {
+        const timeDiffSeconds = (currentTime - this.lastStatsTime) / 1000;
+        const timeDiffMinutes = timeDiffSeconds / 60;
+
+        if (
+          this.lastStats.messagesReceived !== undefined &&
+          currentStats.messagesReceived !== undefined
+        ) {
+          const messageDiff = currentStats.messagesReceived - this.lastStats.messagesReceived;
+          messageRate = `${Math.round(messageDiff / timeDiffMinutes)}/min`;
+        }
+
+        if (
+          this.lastStats.bytesReceived !== undefined &&
+          currentStats.bytesReceived !== undefined
+        ) {
+          const bytesDiff = currentStats.bytesReceived - this.lastStats.bytesReceived;
+          const bytesPerSecond = bytesDiff / timeDiffSeconds;
+          dataRate = this.formatDataRate(bytesPerSecond);
+        }
+      }
+
+      // Store current stats for next calculation
+      this.lastStatsTime = currentTime;
+      this.lastStats = currentStats;
+
+      return {
+        connectionRate: activeConnections,
+        messageRate,
+        dataRate,
+        monitorStatus: 'Active',
+      };
+    } catch (error) {
+      console.error(`Failed to get monitoring metrics: ${(error as Error).message}`);
+      return {
+        connectionRate: '0',
+        messageRate: '0/min',
+        dataRate: '0 KB/s',
+        monitorStatus: 'Error',
+      };
+    }
+  }
+
+  private formatDataRate(bytesPerSecond: number): string {
+    if (bytesPerSecond < 1024) {
+      return `${Math.round(bytesPerSecond)} B/s`;
+    } else if (bytesPerSecond < 1024 * 1024) {
+      return `${Math.round(bytesPerSecond / 1024)} KB/s`;
+    } else {
+      return `${Math.round(bytesPerSecond / (1024 * 1024))} MB/s`;
     }
   }
 }

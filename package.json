@@ -1,5 +1,5 @@
 {
-  "name": "signalk-mqtt-mosquitto",
+  "name": "signalk-mosquitto",
   "version": "0.5.0-beta.1",
   "description": "SignalK plugin for managing Mosquitto MQTT broker with bridge connections and security",
   "keywords": [

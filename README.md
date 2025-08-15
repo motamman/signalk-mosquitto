@@ -2,7 +2,7 @@
 
 ![Mosquitto Logo](public/mosquitto.png)
 
-A comprehensive SignalK plugin for managing a Mosquitto MQTT broker with bridge connections, security features, and real-time monitoring.
+A SignalK plugin for managing a Mosquitto MQTT broker with bridge connections, security features, and real-time monitoring.
 
 ## Features
 

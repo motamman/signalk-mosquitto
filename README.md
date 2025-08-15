@@ -360,5 +360,3 @@ MIT License - see [LICENSE](LICENSE) file for details.
 - Real-time statistics and monitoring
 
 ---
-
-**Made with ❤️ for the SignalK community**

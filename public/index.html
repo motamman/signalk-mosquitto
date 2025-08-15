@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Mosquitto MQTT Broker Manager</title>
+    <title>SignalK MQTT Mosquitto Manager</title>
+    <link rel="icon" type="image/png" href="mosquitto.png" />
     <link rel="stylesheet" href="css/style.css" />
     <link
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
@@ -13,7 +14,10 @@
   <body>
     <div id="app">
       <header>
-        <h1><i class="fas fa-satellite-dish"></i> Mosquitto MQTT Broker Manager</h1>
+        <h1>
+          <img src="mosquitto.png" alt="Mosquitto" class="header-icon" /> SignalK MQTT Mosquitto
+          Manager
+        </h1>
         <div class="status-indicator" id="statusIndicator">
           <i class="fas fa-circle"></i>
           <span id="statusText">Loading...</span>
@@ -261,8 +265,8 @@
             </div>
             <div class="metrics-grid">
               <div class="metric-card">
-                <h4>Connection Rate</h4>
-                <div class="metric-value" id="connectionRate">0/min</div>
+                <h4>Active Connections</h4>
+                <div class="metric-value" id="connectionRate">0</div>
               </div>
               <div class="metric-card">
                 <h4>Message Rate</h4>

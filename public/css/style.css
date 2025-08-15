@@ -49,6 +49,13 @@ header h1 i {
   margin-right: 0.5rem;
 }
 
+.header-icon {
+  width: 32px;
+  height: 32px;
+  margin-right: 0.75rem;
+  vertical-align: middle;
+}
+
 .status-indicator {
   display: flex;
   align-items: center;

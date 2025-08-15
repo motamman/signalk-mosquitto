@@ -1,6 +1,4 @@
-# SignalK MQTT Mosquitto Manager
-
-<img src="public/mosquitto.png" alt="Mosquitto Logo" width="48" height="48">
+# <img src="public/mosquitto.png" alt="Mosquitto Logo" width="32" height="32" style="vertical-align: middle;"> SignalK MQTT Mosquitto Manager
 
 A SignalK plugin for managing a Mosquitto MQTT broker with bridge connections, security features, and real-time monitoring.
 

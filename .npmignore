@@ -1,0 +1,48 @@
+# Development and build files
+src/
+*.ts
+!*.d.ts
+tsconfig.json
+webpack.config.js
+
+# Development dependencies and configs
+.eslintrc.*
+.prettierrc*
+.husky/
+lint-staged.config.*
+
+# Testing and CI
+.github/
+*.test.*
+*.spec.*
+coverage/
+
+# Development tools
+.vscode/
+.idea/
+
+# Logs and temp files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation (optional - you might want to keep README.md)
+docs/
+CONTRIBUTING.md
+CHANGELOG.md
+
+# Local development
+.env
+.env.local
+node_modules/
+
+# Built assets that aren't needed (keep plugin/ and public/)
+# Uncomment if you want to exclude source maps
+# *.map

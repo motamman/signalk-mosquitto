@@ -65,3 +65,16 @@ temp/
 # Mosquitto runtime files
 *.pid
 mosquitto.log*
+
+# Configuration files created during development/testing
+webapp-config.json
+bridges.json
+users.json
+acls.json
+mosquitto.conf
+passwd
+acl
+
+# Package artifacts
+*.tgz
+package-lock.json

@@ -1,5 +1,5 @@
 import { PluginServerApp } from '@signalk/server-api';
-import { MosquittoPluginConfig, BridgeConfig, BridgeManager } from '../types/interfaces';
+import { MosquittoCompleteConfig, BridgeConfig, BridgeManager } from '../types/interfaces';
 import { FileUtils } from '../utils/file-utils';
 import { ValidationUtils } from '../utils/validation';
 import * as mqtt from 'mqtt';
@@ -7,11 +7,11 @@ import * as path from 'path';
 
 export class BridgeManagerImpl implements BridgeManager {
   private app: PluginServerApp;
-  private config: MosquittoPluginConfig;
+  private config: MosquittoCompleteConfig;
   private dataDir: string;
   private bridgeConfigFile: string;
 
-  constructor(app: PluginServerApp, config: MosquittoPluginConfig) {
+  constructor(app: PluginServerApp, config: MosquittoCompleteConfig) {
     this.app = app;
     this.config = config;
     this.dataDir = FileUtils.getDataDir('signalk-mosquitto');

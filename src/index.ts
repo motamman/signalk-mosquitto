@@ -1,5 +1,5 @@
 import { Plugin, PluginServerApp } from '@signalk/server-api';
-import { MosquittoPluginConfig } from './types/interfaces';
+import { MosquittoPluginConfig, MosquittoCompleteConfig } from './types/interfaces';
 import { MosquittoManagerImpl } from './services/mosquitto-manager';
 import { BridgeManagerImpl } from './services/bridge-manager';
 import { SecurityManagerImpl } from './services/security-manager';
@@ -7,11 +7,19 @@ import { ProcessMonitorImpl } from './services/process-monitor';
 import { MosquittoInstaller } from './services/mosquitto-installer';
 import * as express from 'express';
 import * as path from 'path';
+import * as fs from 'fs-extra';
+import { FileUtils } from './utils/file-utils';
 
-const defaultConfig: MosquittoPluginConfig = {
+const defaultPluginConfig: MosquittoPluginConfig = {
   enabled: false,
   brokerPort: 1883,
   brokerHost: '0.0.0.0',
+  enableSecurity: true,
+  autoStart: true
+};
+
+const defaultCompleteConfig: MosquittoCompleteConfig = {
+  ...defaultPluginConfig,
   enableWebsockets: true,
   websocketPort: 9001,
   maxConnections: 1000,
@@ -20,7 +28,6 @@ const defaultConfig: MosquittoPluginConfig = {
   logLevel: 'information',
   persistence: true,
   persistenceLocation: '/tmp/mosquitto.db',
-  enableSecurity: true,
   tlsEnabled: false,
   tlsCertPath: '',
   tlsKeyPath: '',
@@ -36,7 +43,47 @@ function plugin(app: PluginServerApp): Plugin {
   let securityManager: SecurityManagerImpl;
   let processMonitor: ProcessMonitorImpl;
   let mosquittoInstaller: MosquittoInstaller;
-  let currentConfig: MosquittoPluginConfig;
+  let currentPluginConfig: MosquittoPluginConfig;
+  let currentCompleteConfig: MosquittoCompleteConfig;
+  let configDir: string;
+
+  // Configuration management functions
+  const getConfigPath = (): string => {
+    if (!configDir) {
+      configDir = FileUtils.getDataDir('signalk-mosquitto');
+    }
+    return configDir;
+  };
+
+  const getWebappConfigPath = (): string => {
+    return path.join(getConfigPath(), 'webapp-config.json');
+  };
+
+  const loadWebappConfig = async (): Promise<MosquittoCompleteConfig> => {
+    try {
+      const configPath = getWebappConfigPath();
+      if (await fs.pathExists(configPath)) {
+        const savedConfig = await fs.readJson(configPath);
+        return { ...defaultCompleteConfig, ...currentPluginConfig, ...savedConfig };
+      }
+    } catch (error) {
+      console.warn('Failed to load webapp config, using defaults:', error);
+    }
+    return { ...defaultCompleteConfig, ...currentPluginConfig };
+  };
+
+  const saveWebappConfig = async (config: Partial<MosquittoCompleteConfig>): Promise<void> => {
+    try {
+      await fs.ensureDir(getConfigPath());
+      const configPath = getWebappConfigPath();
+      // Only save webapp-managed settings, exclude plugin settings
+      const { enabled, brokerPort, brokerHost, enableSecurity, autoStart, ...webappConfig } = config;
+      await fs.writeJson(configPath, webappConfig, { spaces: 2 });
+    } catch (error) {
+      console.error('Failed to save webapp config:', error);
+      throw error;
+    }
+  };
 
   const pluginInstance: Plugin = {
     id: 'signalk-mosquitto',
@@ -49,161 +96,52 @@ function plugin(app: PluginServerApp): Plugin {
         enabled: {
           type: 'boolean',
           title: 'Enable Mosquitto Broker',
+          description: 'Start/stop the Mosquitto MQTT broker service',
           default: false
         },
         brokerPort: {
           type: 'number',
           title: 'MQTT Port',
+          description: 'Primary MQTT port for broker connections',
           default: 1883,
           minimum: 1,
           maximum: 65535
         },
         brokerHost: {
           type: 'string',
-          title: 'Bind Address',
+          title: 'Bind Address', 
+          description: 'IP address to bind the broker to (0.0.0.0 for all interfaces)',
           default: '0.0.0.0'
-        },
-        enableWebsockets: {
-          type: 'boolean',
-          title: 'Enable WebSocket Support',
-          default: true
-        },
-        websocketPort: {
-          type: 'number',
-          title: 'WebSocket Port',
-          default: 9001,
-          minimum: 1,
-          maximum: 65535
-        },
-        maxConnections: {
-          type: 'number',
-          title: 'Maximum Connections',
-          default: 1000,
-          minimum: 1
-        },
-        allowAnonymous: {
-          type: 'boolean',
-          title: 'Allow Anonymous Access',
-          default: false
-        },
-        enableLogging: {
-          type: 'boolean',
-          title: 'Enable Logging',
-          default: true
-        },
-        logLevel: {
-          type: 'string',
-          title: 'Log Level',
-          enum: ['error', 'warning', 'notice', 'information', 'debug'],
-          default: 'information'
-        },
-        persistence: {
-          type: 'boolean',
-          title: 'Enable Persistence',
-          default: true
-        },
-        persistenceLocation: {
-          type: 'string',
-          title: 'Persistence Database Path',
-          default: '/tmp/mosquitto.db'
         },
         enableSecurity: {
           type: 'boolean',
           title: 'Enable Authentication',
+          description: 'Require username/password authentication for connections',
           default: true
         },
-        tlsEnabled: {
+        autoStart: {
           type: 'boolean',
-          title: 'Enable TLS/SSL',
-          default: false
-        },
-        tlsCertPath: {
-          type: 'string',
-          title: 'TLS Certificate Path',
-          default: ''
-        },
-        tlsKeyPath: {
-          type: 'string',
-          title: 'TLS Private Key Path',
-          default: ''
-        },
-        tlsCaPath: {
-          type: 'string',
-          title: 'TLS CA Certificate Path',
-          default: ''
-        },
-        bridges: {
-          type: 'array',
-          title: 'Bridge Connections',
-          items: {
-            type: 'object',
-            properties: {
-              id: { type: 'string', title: 'Bridge ID' },
-              enabled: { type: 'boolean', title: 'Enabled', default: true },
-              name: { type: 'string', title: 'Bridge Name' },
-              remoteHost: { type: 'string', title: 'Remote Host' },
-              remotePort: { type: 'number', title: 'Remote Port', default: 1883 },
-              remoteUsername: { type: 'string', title: 'Remote Username' },
-              remotePassword: { type: 'string', title: 'Remote Password' },
-              tlsEnabled: { type: 'boolean', title: 'Use TLS', default: false },
-              keepalive: { type: 'number', title: 'Keep Alive (seconds)', default: 60 },
-              cleanSession: { type: 'boolean', title: 'Clean Session', default: true },
-              topics: {
-                type: 'array',
-                title: 'Topics',
-                items: {
-                  type: 'object',
-                  properties: {
-                    pattern: { type: 'string', title: 'Topic Pattern' },
-                    direction: { type: 'string', enum: ['in', 'out', 'both'], title: 'Direction' },
-                    qos: { type: 'number', enum: [0, 1, 2], title: 'QoS Level' },
-                    localPrefix: { type: 'string', title: 'Local Prefix' },
-                    remotePrefix: { type: 'string', title: 'Remote Prefix' }
-                  }
-                }
-              }
-            }
-          }
-        },
-        users: {
-          type: 'array',
-          title: 'Users',
-          items: {
-            type: 'object',
-            properties: {
-              username: { type: 'string', title: 'Username' },
-              password: { type: 'string', title: 'Password' },
-              enabled: { type: 'boolean', title: 'Enabled', default: true }
-            }
-          }
-        },
-        acls: {
-          type: 'array',
-          title: 'Access Control Rules',
-          items: {
-            type: 'object',
-            properties: {
-              username: { type: 'string', title: 'Username' },
-              clientid: { type: 'string', title: 'Client ID' },
-              topic: { type: 'string', title: 'Topic Pattern' },
-              access: { type: 'string', enum: ['read', 'write', 'readwrite'], title: 'Access Level' }
-            }
-          }
+          title: 'Auto-start on SignalK Start',
+          description: 'Automatically start Mosquitto when SignalK server starts',
+          default: true
         }
       }
     }),
 
-    start: async (config: object, restart: (newConfiguration: object) => void): Promise<void> => {
-      currentConfig = { ...defaultConfig, ...(config as MosquittoPluginConfig) };
+    start: async (config: object): Promise<void> => {
+      currentPluginConfig = { ...defaultPluginConfig, ...(config as MosquittoPluginConfig) };
       
       try {
+        // Load complete configuration from webapp config file
+        currentCompleteConfig = await loadWebappConfig();
+        
         mosquittoInstaller = new MosquittoInstaller(app);
-        mosquittoManager = new MosquittoManagerImpl(app, currentConfig);
-        bridgeManager = new BridgeManagerImpl(app, currentConfig);
-        securityManager = new SecurityManagerImpl(app, currentConfig);
+        mosquittoManager = new MosquittoManagerImpl(app, currentCompleteConfig);
+        bridgeManager = new BridgeManagerImpl(app, currentCompleteConfig);
+        securityManager = new SecurityManagerImpl(app, currentCompleteConfig);
         processMonitor = new ProcessMonitorImpl(app, mosquittoManager);
 
-        if (currentConfig.enabled) {
+        if (currentPluginConfig.enabled && currentPluginConfig.autoStart) {
           const isInstalled = await mosquittoInstaller.isInstalled();
           if (!isInstalled) {
             console.log('Mosquitto not installed, installing...');
@@ -214,10 +152,9 @@ function plugin(app: PluginServerApp): Plugin {
           await mosquittoManager.start();
           processMonitor.start();
           
-          // Plugin status management would be handled by server
           console.log('Mosquitto broker running');
         } else {
-          console.log('Mosquitto broker disabled');
+          console.log('Mosquitto broker disabled or auto-start disabled');
         }
       } catch (error) {
         console.error(`Failed to start Mosquitto: ${(error as Error).message}`);
@@ -489,7 +426,9 @@ function plugin(app: PluginServerApp): Plugin {
       // Configuration management routes
       router.get('/config', async (_req, res) => {
         try {
-          res.json(currentConfig);
+          // Return complete configuration for webapp management
+          const completeConfig = await loadWebappConfig();
+          res.json(completeConfig);
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           res.status(500).json({ error: errorMessage });
@@ -498,7 +437,7 @@ function plugin(app: PluginServerApp): Plugin {
 
       router.post('/config', async (req, res) => {
         try {
-          const newConfig = { ...currentConfig, ...req.body };
+          const newConfig = { ...currentCompleteConfig, ...req.body };
           
           // Validate the configuration
           const validation = require('./utils/validation').ValidationUtils.validateConfig(newConfig);
@@ -506,12 +445,16 @@ function plugin(app: PluginServerApp): Plugin {
             return res.status(400).json({ error: `Configuration validation failed: ${validation.errors.join(', ')}` });
           }
 
-          // Update current configuration
-          currentConfig = newConfig;
+          // Save webapp-managed configuration
+          await saveWebappConfig(newConfig);
           
-          // Restart the plugin with new configuration
-          // Note: In a real SignalK plugin, you would use the restart callback
-          // For now, we'll just update the configuration without restarting
+          // Update current complete configuration
+          currentCompleteConfig = newConfig;
+          
+          // Apply configuration changes to services (without restarting plugin)
+          if (mosquittoManager) {
+            await mosquittoManager.restart();
+          }
           
           res.json({ success: true, message: 'Configuration saved successfully' });
         } catch (error) {

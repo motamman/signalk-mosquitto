@@ -1,7 +1,7 @@
-import { MosquittoPluginConfig, BridgeConfig, UserConfig, AclConfig } from '../types/interfaces';
+import { MosquittoCompleteConfig, BridgeConfig, UserConfig, AclConfig } from '../types/interfaces';
 
 export class ValidationUtils {
-  static validateConfig(config: MosquittoPluginConfig): { valid: boolean; errors: string[] } {
+  static validateConfig(config: MosquittoCompleteConfig): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
 
     if (config.brokerPort < 1 || config.brokerPort > 65535) {

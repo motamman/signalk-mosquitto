@@ -277,9 +277,8 @@ class MosquittoManager {
   private async saveConfiguration(): Promise<void> {
     this.showLoading(true);
     try {
+      // Only save webapp-managed settings, exclude plugin-managed ones
       const config = {
-        brokerPort: parseInt((document.getElementById('brokerPort') as HTMLInputElement).value),
-        brokerHost: (document.getElementById('brokerHost') as HTMLInputElement).value,
         maxConnections: parseInt(
           (document.getElementById('maxConnections') as HTMLInputElement).value
         ),
@@ -332,7 +331,7 @@ class MosquittoManager {
   }
 
   private populateConfigurationForm(config: any): void {
-    // Set form values with config data or defaults
+    // Set readonly plugin-managed values for display
     const brokerPort = document.getElementById('brokerPort') as HTMLInputElement;
     if (brokerPort && config.brokerPort) brokerPort.value = config.brokerPort.toString();
 

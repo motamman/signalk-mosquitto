@@ -1,5 +1,10 @@
 import { PluginServerApp } from '@signalk/server-api';
-import { MosquittoPluginConfig, UserConfig, AclConfig, SecurityManager } from '../types/interfaces';
+import {
+  MosquittoCompleteConfig,
+  UserConfig,
+  AclConfig,
+  SecurityManager,
+} from '../types/interfaces';
 import { FileUtils } from '../utils/file-utils';
 import { ValidationUtils } from '../utils/validation';
 import * as crypto from 'crypto';
@@ -8,7 +13,7 @@ import * as path from 'path';
 
 export class SecurityManagerImpl implements SecurityManager {
   private app: PluginServerApp;
-  private config: MosquittoPluginConfig;
+  private config: MosquittoCompleteConfig;
   private dataDir: string;
   private configDir: string;
   private passwordFile: string;
@@ -17,7 +22,7 @@ export class SecurityManagerImpl implements SecurityManager {
   private aclsFile: string;
   private certsDir: string;
 
-  constructor(app: PluginServerApp, config: MosquittoPluginConfig) {
+  constructor(app: PluginServerApp, config: MosquittoCompleteConfig) {
     this.app = app;
     this.config = config;
     this.dataDir = FileUtils.getDataDir('signalk-mosquitto');

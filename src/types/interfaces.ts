@@ -1,9 +1,16 @@
 // Types and interfaces for SignalK Mosquitto plugin
 
+// Simplified plugin configuration (SignalK admin interface)
 export interface MosquittoPluginConfig {
   enabled: boolean;
   brokerPort: number;
   brokerHost: string;
+  enableSecurity: boolean;
+  autoStart: boolean;
+}
+
+// Complete configuration for internal use and webapp management
+export interface MosquittoCompleteConfig extends MosquittoPluginConfig {
   enableWebsockets: boolean;
   websocketPort: number;
   maxConnections: number;
@@ -12,7 +19,6 @@ export interface MosquittoPluginConfig {
   logLevel: 'error' | 'warning' | 'notice' | 'information' | 'debug';
   persistence: boolean;
   persistenceLocation: string;
-  enableSecurity: boolean;
   tlsEnabled: boolean;
   tlsCertPath: string;
   tlsKeyPath: string;
@@ -87,7 +93,7 @@ export interface MosquittoManager {
   restart(): Promise<void>;
   getStatus(): Promise<MosquittoStatus>;
   getMonitoringMetrics(): Promise<MonitoringMetrics>;
-  generateConfig(config: MosquittoPluginConfig): Promise<string>;
+  generateConfig(config: MosquittoCompleteConfig): Promise<string>;
   writeConfig(configContent: string): Promise<void>;
   validateConfig(): Promise<boolean>;
 }

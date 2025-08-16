@@ -166,7 +166,13 @@ class MosquittoManager {
   private async loadInitialData(): Promise<void> {
     this.showLoading(true);
     try {
-      await Promise.all([this.loadStatus(), this.loadBridges(), this.loadUsers(), this.loadAcls()]);
+      await Promise.all([
+        this.loadStatus(),
+        this.loadBridges(),
+        this.loadUsers(),
+        this.loadAcls(),
+        this.loadConfiguration(),
+      ]);
     } catch (error) {
       console.error('Failed to load initial data:', error);
       this.showError('Failed to load application data');
@@ -269,9 +275,102 @@ class MosquittoManager {
   }
 
   private async saveConfiguration(): Promise<void> {
-    // This would typically save to the plugin configuration
-    // For now, just show a success message
-    this.showSuccess('Configuration saved successfully');
+    this.showLoading(true);
+    try {
+      const config = {
+        brokerPort: parseInt((document.getElementById('brokerPort') as HTMLInputElement).value),
+        brokerHost: (document.getElementById('brokerHost') as HTMLInputElement).value,
+        maxConnections: parseInt(
+          (document.getElementById('maxConnections') as HTMLInputElement).value
+        ),
+        logLevel: (document.getElementById('logLevel') as HTMLSelectElement).value,
+        enableWebsockets: (document.getElementById('enableWebsockets') as HTMLInputElement).checked,
+        websocketPort: parseInt(
+          (document.getElementById('websocketPort') as HTMLInputElement).value
+        ),
+        persistence: (document.getElementById('persistence') as HTMLInputElement).checked,
+        persistenceLocation: (document.getElementById('persistenceLocation') as HTMLInputElement)
+          .value,
+        tlsEnabled: (document.getElementById('tlsEnabled') as HTMLInputElement).checked,
+        tlsCertPath: (document.getElementById('tlsCertPath') as HTMLInputElement).value,
+        tlsKeyPath: (document.getElementById('tlsKeyPath') as HTMLInputElement).value,
+        tlsCaPath: (document.getElementById('tlsCaPath') as HTMLInputElement).value,
+      };
+
+      const response = await fetch(`${this.baseUrl}/config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to save configuration');
+      }
+
+      const result = await response.json();
+      this.showSuccess(result.message || 'Configuration saved successfully');
+    } catch (error) {
+      console.error('Failed to save configuration:', error);
+      this.showError((error as Error).message || 'Failed to save configuration');
+    } finally {
+      this.showLoading(false);
+    }
+  }
+
+  private async loadConfiguration(): Promise<void> {
+    try {
+      const response = await fetch(`${this.baseUrl}/config`);
+      if (!response.ok) throw new Error('Failed to fetch configuration');
+
+      const config = await response.json();
+      this.populateConfigurationForm(config);
+    } catch (error) {
+      console.error('Failed to load configuration:', error);
+      // Use default values if loading fails - form already has defaults
+    }
+  }
+
+  private populateConfigurationForm(config: any): void {
+    // Set form values with config data or defaults
+    const brokerPort = document.getElementById('brokerPort') as HTMLInputElement;
+    if (brokerPort && config.brokerPort) brokerPort.value = config.brokerPort.toString();
+
+    const brokerHost = document.getElementById('brokerHost') as HTMLInputElement;
+    if (brokerHost && config.brokerHost) brokerHost.value = config.brokerHost;
+
+    const maxConnections = document.getElementById('maxConnections') as HTMLInputElement;
+    if (maxConnections && config.maxConnections)
+      maxConnections.value = config.maxConnections.toString();
+
+    const logLevel = document.getElementById('logLevel') as HTMLSelectElement;
+    if (logLevel && config.logLevel) logLevel.value = config.logLevel;
+
+    const enableWebsockets = document.getElementById('enableWebsockets') as HTMLInputElement;
+    if (enableWebsockets) enableWebsockets.checked = config.enableWebsockets ?? true;
+
+    const websocketPort = document.getElementById('websocketPort') as HTMLInputElement;
+    if (websocketPort && config.websocketPort)
+      websocketPort.value = config.websocketPort.toString();
+
+    const persistence = document.getElementById('persistence') as HTMLInputElement;
+    if (persistence) persistence.checked = config.persistence ?? true;
+
+    const persistenceLocation = document.getElementById('persistenceLocation') as HTMLInputElement;
+    if (persistenceLocation && config.persistenceLocation)
+      persistenceLocation.value = config.persistenceLocation;
+
+    const tlsEnabled = document.getElementById('tlsEnabled') as HTMLInputElement;
+    if (tlsEnabled) tlsEnabled.checked = config.tlsEnabled ?? false;
+
+    const tlsCertPath = document.getElementById('tlsCertPath') as HTMLInputElement;
+    if (tlsCertPath && config.tlsCertPath) tlsCertPath.value = config.tlsCertPath;
+
+    const tlsKeyPath = document.getElementById('tlsKeyPath') as HTMLInputElement;
+    if (tlsKeyPath && config.tlsKeyPath) tlsKeyPath.value = config.tlsKeyPath;
+
+    const tlsCaPath = document.getElementById('tlsCaPath') as HTMLInputElement;
+    if (tlsCaPath && config.tlsCaPath) tlsCaPath.value = config.tlsCaPath;
   }
 
   private async generateCertificates(): Promise<void> {
@@ -864,13 +963,145 @@ class MosquittoManager {
   }
 
   private showSuccess(message: string): void {
-    // Simple alert for now - could be replaced with a toast notification
-    alert(`Success: ${message}`);
+    this.showToast('success', 'Success', message);
   }
 
   private showError(message: string): void {
-    // Simple alert for now - could be replaced with a toast notification
-    alert(`Error: ${message}`);
+    this.showToast('error', 'Error', message);
+  }
+
+  private showWarning(message: string): void {
+    this.showToast('warning', 'Warning', message);
+  }
+
+  private showInfo(message: string): void {
+    this.showToast('info', 'Info', message);
+  }
+
+  private showToast(
+    type: 'success' | 'error' | 'warning' | 'info',
+    title: string,
+    message: string,
+    duration: number = 5000
+  ): void {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+
+    // Get appropriate icon
+    const icons = {
+      success: 'fas fa-check-circle',
+      error: 'fas fa-exclamation-circle',
+      warning: 'fas fa-exclamation-triangle',
+      info: 'fas fa-info-circle',
+    };
+
+    toast.innerHTML = `
+      <div class="toast-icon">
+        <i class="${icons[type]}"></i>
+      </div>
+      <div class="toast-content">
+        <div class="toast-title">${title}</div>
+        <div class="toast-message">${message}</div>
+      </div>
+      <button class="toast-close" aria-label="Close">
+        <i class="fas fa-times"></i>
+      </button>
+    `;
+
+    // Add close functionality
+    const closeBtn = toast.querySelector('.toast-close');
+    closeBtn?.addEventListener('click', () => {
+      this.removeToast(toast);
+    });
+
+    // Add to container
+    container.appendChild(toast);
+
+    // Trigger animation
+    setTimeout(() => {
+      toast.classList.add('show');
+    }, 10);
+
+    // Auto remove after duration
+    setTimeout(() => {
+      this.removeToast(toast);
+    }, duration);
+  }
+
+  private removeToast(toast: HTMLElement): void {
+    toast.classList.remove('show');
+    setTimeout(() => {
+      if (toast.parentNode) {
+        toast.parentNode.removeChild(toast);
+      }
+    }, 300);
+  }
+
+  private async showConfirmDialog(
+    title: string,
+    message: string,
+    confirmText: string = 'Confirm',
+    cancelText: string = 'Cancel'
+  ): Promise<boolean> {
+    return new Promise(resolve => {
+      // Create overlay
+      const overlay = document.createElement('div');
+      overlay.className = 'confirm-overlay';
+
+      // Create dialog
+      const dialog = document.createElement('div');
+      dialog.className = 'confirm-dialog';
+      dialog.innerHTML = `
+        <div class="confirm-header">
+          <h3>${title}</h3>
+        </div>
+        <div class="confirm-body">
+          <p>${message}</p>
+        </div>
+        <div class="confirm-actions">
+          <button class="btn btn-secondary confirm-cancel">${cancelText}</button>
+          <button class="btn btn-danger confirm-ok">${confirmText}</button>
+        </div>
+      `;
+
+      overlay.appendChild(dialog);
+      document.body.appendChild(overlay);
+
+      // Add event listeners
+      const cancelBtn = dialog.querySelector('.confirm-cancel');
+      const confirmBtn = dialog.querySelector('.confirm-ok');
+
+      const cleanup = (): void => {
+        document.body.removeChild(overlay);
+      };
+
+      cancelBtn?.addEventListener('click', () => {
+        cleanup();
+        resolve(false);
+      });
+
+      confirmBtn?.addEventListener('click', () => {
+        cleanup();
+        resolve(true);
+      });
+
+      // Close on overlay click
+      overlay.addEventListener('click', e => {
+        if (e.target === overlay) {
+          cleanup();
+          resolve(false);
+        }
+      });
+
+      // Focus confirm button
+      setTimeout(() => {
+        (confirmBtn as HTMLElement)?.focus();
+      }, 100);
+    });
   }
 
   private updateElement(id: string, value: string): void {
@@ -930,7 +1161,13 @@ class MosquittoManager {
   }
 
   public async deleteBridge(bridgeId: string): Promise<void> {
-    if (confirm('Are you sure you want to delete this bridge?')) {
+    const confirmed = await this.showConfirmDialog(
+      'Delete Bridge',
+      'Are you sure you want to delete this bridge? This action cannot be undone.',
+      'Delete Bridge'
+    );
+
+    if (confirmed) {
       this.showLoading(true);
       try {
         const response = await fetch(`${this.baseUrl}/bridges/${bridgeId}`, {
@@ -975,7 +1212,13 @@ class MosquittoManager {
   }
 
   public async deleteUser(username: string): Promise<void> {
-    if (confirm(`Are you sure you want to delete user '${username}'?`)) {
+    const confirmed = await this.showConfirmDialog(
+      'Delete User',
+      `Are you sure you want to delete user '${username}'? This action cannot be undone.`,
+      'Delete User'
+    );
+
+    if (confirmed) {
       this.showLoading(true);
       try {
         const response = await fetch(`${this.baseUrl}/users/${username}`, {
@@ -1000,7 +1243,13 @@ class MosquittoManager {
   }
 
   public async deleteAcl(aclData: string): Promise<void> {
-    if (confirm('Are you sure you want to delete this ACL rule?')) {
+    const confirmed = await this.showConfirmDialog(
+      'Delete ACL Rule',
+      'Are you sure you want to delete this ACL rule? This action cannot be undone.',
+      'Delete Rule'
+    );
+
+    if (confirmed) {
       this.showLoading(true);
       try {
         const acl = JSON.parse(decodeURIComponent(aclData)) as AclConfig;

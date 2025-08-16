@@ -358,4 +358,40 @@ MIT License - see [LICENSE](LICENSE) file for details.
 - Multi-platform automatic installation
 - Real-time statistics and monitoring
 
+## Future Features & Roadmap
+
+The following features are planned for future releases. Contributions are welcome!
+
+### 📤 **Data Management**
+- [ ] **Bridge Import/Export**: Export bridge configurations to JSON and import from files
+- [ ] **Security Config Import/Export**: Backup and restore user/ACL configurations
+
+
+### 🚀 **Advanced Bridge Features**
+- [ ] **Individual Bridge Control**: Enable/disable bridges without editing
+- [ ] **Bridge Status Monitoring**: Real-time connection status indicators
+- [ ] **Connection History**: Bridge connection logs and history
+- [ ] **Auto-Reconnect**: Automatic bridge reconnection with exponential backoff
+- [ ] **Bridge Load Balancing**: Distribute topics across multiple bridges
+
+### 🔧 **Advanced Configuration**
+- [ ] **TLS Integration**: Auto-populate certificate paths after generation
+- [ ] **Advanced MQTT Settings**: Message persistence, retained messages, will messages
+- [ ] **Performance Tuning**: Memory limits, connection timeouts, keep-alive settings
+- [ ] **Plugin Profiles**: Environment-specific configurations (dev/staging/prod)
+
+### 📊 **Enhanced Monitoring**
+- [ ] **Message Flow Visualization**: Visual topic flow diagrams
+- [ ] **Historical Data**: Charts and graphs of broker performance over time
+- [ ] **Alerting System**: Email/webhook notifications for critical events
+- [ ] **Client Connection Details**: Individual client information and statistics
+- [ ] **Topic Analytics**: Most active topics and message frequency analysis
+
+### 🎨 **UI/UX Improvements**
+- [ ] **Dark Mode**: Theme switching for better user experience
+- [ ] **Responsive Design**: Mobile-friendly interface improvements
+- [ ] **Keyboard Shortcuts**: Power-user navigation and actions
+- [ ] **Bulk Actions**: Multi-select for bridges, users, and ACL rules
+- [ ] **Advanced Search**: Filter and search across all configurations
+
 ---

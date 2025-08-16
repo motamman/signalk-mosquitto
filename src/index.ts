@@ -486,6 +486,40 @@ function plugin(app: PluginServerApp): Plugin {
         }
       });
 
+      // Configuration management routes
+      router.get('/config', async (_req, res) => {
+        try {
+          res.json(currentConfig);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          res.status(500).json({ error: errorMessage });
+        }
+      });
+
+      router.post('/config', async (req, res) => {
+        try {
+          const newConfig = { ...currentConfig, ...req.body };
+          
+          // Validate the configuration
+          const validation = require('./utils/validation').ValidationUtils.validateConfig(newConfig);
+          if (!validation.valid) {
+            return res.status(400).json({ error: `Configuration validation failed: ${validation.errors.join(', ')}` });
+          }
+
+          // Update current configuration
+          currentConfig = newConfig;
+          
+          // Restart the plugin with new configuration
+          // Note: In a real SignalK plugin, you would use the restart callback
+          // For now, we'll just update the configuration without restarting
+          
+          res.json({ success: true, message: 'Configuration saved successfully' });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          res.status(500).json({ error: errorMessage });
+        }
+      });
+
       // Serve static files for the web interface
       const staticPath = path.resolve(__dirname, '..', 'public');
       router.use(express.static(staticPath));

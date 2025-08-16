@@ -277,11 +277,20 @@ class MosquittoManager {
   private async generateCertificates(): Promise<void> {
     this.showLoading(true);
     try {
-      // Call the security manager API to generate certificates
-      this.showSuccess('Self-signed certificates generated successfully');
+      const response = await fetch(`${this.baseUrl}/certificates/generate`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate certificates');
+      }
+
+      const result = await response.json();
+      this.showSuccess(result.message || 'Self-signed certificates generated successfully');
     } catch (error) {
       console.error('Failed to generate certificates:', error);
-      this.showError('Failed to generate certificates');
+      this.showError((error as Error).message || 'Failed to generate certificates');
     } finally {
       this.showLoading(false);
     }
@@ -385,10 +394,12 @@ class MosquittoManager {
     if (bridge) {
       // Edit mode
       document.getElementById('bridgeModalTitle')!.textContent = 'Edit Bridge';
+      form.dataset.bridgeId = bridge.id;
       this.populateBridgeForm(bridge);
     } else {
       // Add mode
       document.getElementById('bridgeModalTitle')!.textContent = 'Add Bridge';
+      delete form.dataset.bridgeId;
     }
 
     modal.classList.add('active');
@@ -454,8 +465,11 @@ class MosquittoManager {
 
     this.showLoading(true);
     try {
+      const isEditMode = document.getElementById('bridgeModalTitle')!.textContent === 'Edit Bridge';
+      const existingBridgeId = isEditMode ? form.dataset.bridgeId : undefined;
+
       const bridgeConfig: BridgeConfig = {
-        id: Date.now().toString(), // Generate ID
+        id: existingBridgeId || Date.now().toString(),
         enabled: true,
         name: (document.getElementById('bridgeName') as HTMLInputElement).value,
         remoteHost: (document.getElementById('remoteHost') as HTMLInputElement).value,
@@ -471,14 +485,33 @@ class MosquittoManager {
         topics: this.collectTopics(),
       };
 
-      // Here you would save the bridge via API
-      console.log('Saving bridge:', bridgeConfig);
-      this.showSuccess('Bridge saved successfully');
+      let response;
+      if (isEditMode && existingBridgeId) {
+        response = await fetch(`${this.baseUrl}/bridges/${existingBridgeId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bridgeConfig),
+        });
+      } else {
+        response = await fetch(`${this.baseUrl}/bridges`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bridgeConfig),
+        });
+      }
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to save bridge');
+      }
+
+      const result = await response.json();
+      this.showSuccess(result.message || 'Bridge saved successfully');
       this.closeAllModals();
       this.loadBridges();
     } catch (error) {
       console.error('Failed to save bridge:', error);
-      this.showError('Failed to save bridge');
+      this.showError((error as Error).message || 'Failed to save bridge');
     } finally {
       this.showLoading(false);
     }
@@ -542,8 +575,16 @@ class MosquittoManager {
   }
 
   private async loadUsers(): Promise<void> {
-    // Mock data for now
-    this.updateUserList([]);
+    try {
+      const response = await fetch(`${this.baseUrl}/users`);
+      if (!response.ok) throw new Error('Failed to fetch users');
+
+      const users: UserConfig[] = await response.json();
+      this.updateUserList(users);
+    } catch (error) {
+      console.error('Failed to load users:', error);
+      this.updateUserList([]);
+    }
   }
 
   private updateUserList(users: UserConfig[]): void {
@@ -592,9 +633,14 @@ class MosquittoManager {
     if (user) {
       document.getElementById('userModalTitle')!.textContent = 'Edit User';
       (document.getElementById('username') as HTMLInputElement).value = user.username;
+      (document.getElementById('password') as HTMLInputElement).value = '';
       (document.getElementById('userEnabled') as HTMLInputElement).checked = user.enabled;
+
+      // Make username readonly when editing
+      (document.getElementById('username') as HTMLInputElement).readOnly = true;
     } else {
       document.getElementById('userModalTitle')!.textContent = 'Add User';
+      (document.getElementById('username') as HTMLInputElement).readOnly = false;
     }
 
     modal.classList.add('active');
@@ -607,15 +653,63 @@ class MosquittoManager {
       return;
     }
 
-    // Implementation would save via API
-    this.showSuccess('User saved successfully');
-    this.closeAllModals();
-    this.loadUsers();
+    this.showLoading(true);
+    try {
+      const username = (document.getElementById('username') as HTMLInputElement).value;
+      const password = (document.getElementById('password') as HTMLInputElement).value;
+      const enabled = (document.getElementById('userEnabled') as HTMLInputElement).checked;
+
+      const userConfig: UserConfig = {
+        username,
+        password,
+        enabled,
+      };
+
+      const isEditMode = document.getElementById('userModalTitle')!.textContent === 'Edit User';
+
+      let response;
+      if (isEditMode) {
+        response = await fetch(`${this.baseUrl}/users/${username}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(userConfig),
+        });
+      } else {
+        response = await fetch(`${this.baseUrl}/users`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(userConfig),
+        });
+      }
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to save user');
+      }
+
+      const result = await response.json();
+      this.showSuccess(result.message || 'User saved successfully');
+      this.closeAllModals();
+      this.loadUsers();
+    } catch (error) {
+      console.error('Failed to save user:', error);
+      this.showError((error as Error).message || 'Failed to save user');
+    } finally {
+      this.showLoading(false);
+    }
   }
 
   private async loadAcls(): Promise<void> {
-    // Mock data for now
-    this.updateAclList([]);
+    try {
+      const response = await fetch(`${this.baseUrl}/acls`);
+      if (!response.ok) throw new Error('Failed to fetch ACLs');
+
+      const acls: AclConfig[] = await response.json();
+      this.updateAclList(acls);
+    } catch (error) {
+      console.error('Failed to load ACLs:', error);
+      this.updateAclList([]);
+    }
   }
 
   private updateAclList(acls: AclConfig[]): void {
@@ -629,7 +723,7 @@ class MosquittoManager {
 
     container.innerHTML = acls
       .map(
-        (acl, index) => `
+        acl => `
       <div class="list-item">
         <div class="list-item-content">
           <div class="list-item-title">${acl.topic}</div>
@@ -639,7 +733,7 @@ class MosquittoManager {
           </div>
         </div>
         <div class="list-item-actions">
-          <button class="btn btn-danger btn-sm" onclick="manager.deleteAcl(${index})">
+          <button class="btn btn-danger btn-sm" onclick="manager.deleteAcl('${encodeURIComponent(JSON.stringify(acl))}')">
             <i class="fas fa-trash"></i> Delete
           </button>
         </div>
@@ -666,10 +760,50 @@ class MosquittoManager {
       return;
     }
 
-    // Implementation would save via API
-    this.showSuccess('ACL rule saved successfully');
-    this.closeAllModals();
-    this.loadAcls();
+    this.showLoading(true);
+    try {
+      const username = (document.getElementById('aclUsername') as HTMLInputElement).value.trim();
+      const clientid = (document.getElementById('aclClientId') as HTMLInputElement).value.trim();
+      const topic = (document.getElementById('aclTopic') as HTMLInputElement).value.trim();
+      const access = (document.getElementById('aclAccess') as HTMLSelectElement).value as
+        | 'read'
+        | 'write'
+        | 'readwrite';
+
+      const aclConfig: AclConfig = {
+        topic,
+        access,
+      };
+
+      if (username) {
+        aclConfig.username = username;
+      }
+
+      if (clientid) {
+        aclConfig.clientid = clientid;
+      }
+
+      const response = await fetch(`${this.baseUrl}/acls`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(aclConfig),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to save ACL rule');
+      }
+
+      const result = await response.json();
+      this.showSuccess(result.message || 'ACL rule saved successfully');
+      this.closeAllModals();
+      this.loadAcls();
+    } catch (error) {
+      console.error('Failed to save ACL rule:', error);
+      this.showError((error as Error).message || 'Failed to save ACL rule');
+    } finally {
+      this.showLoading(false);
+    }
   }
 
   private async loadMonitoringData(): Promise<void> {
@@ -775,37 +909,122 @@ class MosquittoManager {
     this.showSuccess(`Testing bridge ${bridgeId}...`);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public editBridge(_bridgeId: string): void {
-    // Load bridge data and show modal
-    this.showBridgeModal();
-  }
+  public async editBridge(bridgeId: string): Promise<void> {
+    try {
+      const response = await fetch(`${this.baseUrl}/bridges`);
+      if (!response.ok) throw new Error('Failed to fetch bridges');
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public async deleteBridge(_bridgeId: string): Promise<void> {
-    if (confirm('Are you sure you want to delete this bridge?')) {
-      this.showSuccess('Bridge deleted successfully');
-      this.loadBridges();
+      const bridges: BridgeConfig[] = await response.json();
+      const bridge = bridges.find(b => b.id === bridgeId);
+
+      if (!bridge) {
+        this.showError(`Bridge with ID '${bridgeId}' not found`);
+        return;
+      }
+
+      this.showBridgeModal(bridge);
+    } catch (error) {
+      console.error('Failed to load bridge for editing:', error);
+      this.showError('Failed to load bridge data');
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public editUser(_username: string): void {
-    this.showUserModal();
+  public async deleteBridge(bridgeId: string): Promise<void> {
+    if (confirm('Are you sure you want to delete this bridge?')) {
+      this.showLoading(true);
+      try {
+        const response = await fetch(`${this.baseUrl}/bridges/${bridgeId}`, {
+          method: 'DELETE',
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to delete bridge');
+        }
+
+        const result = await response.json();
+        this.showSuccess(result.message || 'Bridge deleted successfully');
+        this.loadBridges();
+      } catch (error) {
+        console.error('Failed to delete bridge:', error);
+        this.showError((error as Error).message || 'Failed to delete bridge');
+      } finally {
+        this.showLoading(false);
+      }
+    }
+  }
+
+  public async editUser(username: string): Promise<void> {
+    try {
+      const response = await fetch(`${this.baseUrl}/users`);
+      if (!response.ok) throw new Error('Failed to fetch users');
+
+      const users: UserConfig[] = await response.json();
+      const user = users.find(u => u.username === username);
+
+      if (!user) {
+        this.showError(`User '${username}' not found`);
+        return;
+      }
+
+      this.showUserModal(user);
+    } catch (error) {
+      console.error('Failed to load user for editing:', error);
+      this.showError('Failed to load user data');
+    }
   }
 
   public async deleteUser(username: string): Promise<void> {
     if (confirm(`Are you sure you want to delete user '${username}'?`)) {
-      this.showSuccess('User deleted successfully');
-      this.loadUsers();
+      this.showLoading(true);
+      try {
+        const response = await fetch(`${this.baseUrl}/users/${username}`, {
+          method: 'DELETE',
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to delete user');
+        }
+
+        const result = await response.json();
+        this.showSuccess(result.message || 'User deleted successfully');
+        this.loadUsers();
+      } catch (error) {
+        console.error('Failed to delete user:', error);
+        this.showError((error as Error).message || 'Failed to delete user');
+      } finally {
+        this.showLoading(false);
+      }
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public async deleteAcl(_index: number): Promise<void> {
+  public async deleteAcl(aclData: string): Promise<void> {
     if (confirm('Are you sure you want to delete this ACL rule?')) {
-      this.showSuccess('ACL rule deleted successfully');
-      this.loadAcls();
+      this.showLoading(true);
+      try {
+        const acl = JSON.parse(decodeURIComponent(aclData)) as AclConfig;
+
+        const response = await fetch(`${this.baseUrl}/acls`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(acl),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to delete ACL rule');
+        }
+
+        const result = await response.json();
+        this.showSuccess(result.message || 'ACL rule deleted successfully');
+        this.loadAcls();
+      } catch (error) {
+        console.error('Failed to delete ACL rule:', error);
+        this.showError((error as Error).message || 'Failed to delete ACL rule');
+      } finally {
+        this.showLoading(false);
+      }
     }
   }
 }

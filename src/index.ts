@@ -305,6 +305,52 @@ function plugin(app: PluginServerApp): Plugin {
         }
       });
 
+      router.post('/bridges', async (req, res) => {
+        try {
+          if (!bridgeManager) {
+            return res.status(503).json({ error: 'Bridge manager not initialized' });
+          }
+          
+          const bridge = req.body;
+          await bridgeManager.addBridge(bridge);
+          res.json({ success: true, message: 'Bridge added successfully' });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          res.status(400).json({ error: errorMessage });
+        }
+      });
+
+      router.put('/bridges/:bridgeId', async (req, res) => {
+        try {
+          if (!bridgeManager) {
+            return res.status(503).json({ error: 'Bridge manager not initialized' });
+          }
+          
+          const { bridgeId } = req.params;
+          const bridge = req.body;
+          await bridgeManager.updateBridge(bridgeId, bridge);
+          res.json({ success: true, message: 'Bridge updated successfully' });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          res.status(400).json({ error: errorMessage });
+        }
+      });
+
+      router.delete('/bridges/:bridgeId', async (req, res) => {
+        try {
+          if (!bridgeManager) {
+            return res.status(503).json({ error: 'Bridge manager not initialized' });
+          }
+          
+          const { bridgeId } = req.params;
+          await bridgeManager.removeBridge(bridgeId);
+          res.json({ success: true, message: 'Bridge deleted successfully' });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          res.status(400).json({ error: errorMessage });
+        }
+      });
+
       router.get('/monitoring', async (_req, res) => {
         try {
           if (!mosquittoManager) {
@@ -313,6 +359,127 @@ function plugin(app: PluginServerApp): Plugin {
           
           const monitoring = await mosquittoManager.getMonitoringMetrics();
           res.json(monitoring);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          res.status(500).json({ error: errorMessage });
+        }
+      });
+
+      // User management routes
+      router.get('/users', async (_req, res) => {
+        try {
+          if (!securityManager) {
+            return res.status(503).json({ error: 'Security manager not initialized' });
+          }
+          
+          const users = await securityManager.getUsers();
+          res.json(users);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          res.status(500).json({ error: errorMessage });
+        }
+      });
+
+      router.post('/users', async (req, res) => {
+        try {
+          if (!securityManager) {
+            return res.status(503).json({ error: 'Security manager not initialized' });
+          }
+          
+          const user = req.body;
+          await securityManager.addUser(user);
+          res.json({ success: true, message: 'User added successfully' });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          res.status(400).json({ error: errorMessage });
+        }
+      });
+
+      router.put('/users/:username', async (req, res) => {
+        try {
+          if (!securityManager) {
+            return res.status(503).json({ error: 'Security manager not initialized' });
+          }
+          
+          const { username } = req.params;
+          const user = req.body;
+          await securityManager.updateUser(username, user);
+          res.json({ success: true, message: 'User updated successfully' });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          res.status(400).json({ error: errorMessage });
+        }
+      });
+
+      router.delete('/users/:username', async (req, res) => {
+        try {
+          if (!securityManager) {
+            return res.status(503).json({ error: 'Security manager not initialized' });
+          }
+          
+          const { username } = req.params;
+          await securityManager.removeUser(username);
+          res.json({ success: true, message: 'User deleted successfully' });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          res.status(400).json({ error: errorMessage });
+        }
+      });
+
+      // ACL management routes
+      router.get('/acls', async (_req, res) => {
+        try {
+          if (!securityManager) {
+            return res.status(503).json({ error: 'Security manager not initialized' });
+          }
+          
+          const acls = await securityManager.getAcls();
+          res.json(acls);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          res.status(500).json({ error: errorMessage });
+        }
+      });
+
+      router.post('/acls', async (req, res) => {
+        try {
+          if (!securityManager) {
+            return res.status(503).json({ error: 'Security manager not initialized' });
+          }
+          
+          const acl = req.body;
+          await securityManager.addAcl(acl);
+          res.json({ success: true, message: 'ACL rule added successfully' });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          res.status(400).json({ error: errorMessage });
+        }
+      });
+
+      router.delete('/acls', async (req, res) => {
+        try {
+          if (!securityManager) {
+            return res.status(503).json({ error: 'Security manager not initialized' });
+          }
+          
+          const acl = req.body;
+          await securityManager.removeAcl(acl);
+          res.json({ success: true, message: 'ACL rule deleted successfully' });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          res.status(400).json({ error: errorMessage });
+        }
+      });
+
+      // Certificate generation route
+      router.post('/certificates/generate', async (_req, res) => {
+        try {
+          if (!securityManager) {
+            return res.status(503).json({ error: 'Security manager not initialized' });
+          }
+          
+          await securityManager.generateCertificates();
+          res.json({ success: true, message: 'Self-signed certificates generated successfully' });
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           res.status(500).json({ error: errorMessage });

@@ -188,7 +188,11 @@ export class BridgeManagerImpl implements BridgeManager {
   }
 
   private async updateMainConfig(bridges: BridgeConfig[]): Promise<void> {
+    // Update the config reference
     this.config.bridges = bridges;
+
+    // Note: In a production system, you might want to trigger a config reload
+    // or notify other components that bridges have changed
   }
 
   async enableBridge(bridgeId: string): Promise<void> {

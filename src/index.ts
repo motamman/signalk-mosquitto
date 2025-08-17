@@ -62,10 +62,39 @@ function plugin(app: PluginServerApp): Plugin {
   const loadWebappConfig = async (): Promise<MosquittoCompleteConfig> => {
     try {
       const configPath = getWebappConfigPath();
+      const bridgesPath = path.join(getConfigPath(), 'bridges.json');
+      const usersPath = path.join(getConfigPath(), 'users.json');
+      const aclsPath = path.join(getConfigPath(), 'acls.json');
+      
+      let savedConfig = {};
+      let bridges = [];
+      let users = [];
+      let acls = [];
+      
       if (await fs.pathExists(configPath)) {
-        const savedConfig = await fs.readJson(configPath);
-        return { ...defaultCompleteConfig, ...currentPluginConfig, ...savedConfig };
+        savedConfig = await fs.readJson(configPath);
       }
+      
+      if (await fs.pathExists(bridgesPath)) {
+        bridges = await fs.readJson(bridgesPath);
+      }
+      
+      if (await fs.pathExists(usersPath)) {
+        users = await fs.readJson(usersPath);
+      }
+      
+      if (await fs.pathExists(aclsPath)) {
+        acls = await fs.readJson(aclsPath);
+      }
+      
+      return { 
+        ...defaultCompleteConfig, 
+        ...currentPluginConfig, 
+        ...savedConfig,
+        bridges,
+        users,
+        acls
+      };
     } catch (error) {
       console.warn('Failed to load webapp config, using defaults:', error);
     }
@@ -81,6 +110,22 @@ function plugin(app: PluginServerApp): Plugin {
       await fs.writeJson(configPath, webappConfig, { spaces: 2 });
     } catch (error) {
       console.error('Failed to save webapp config:', error);
+      throw error;
+    }
+  };
+
+  const reloadCompleteConfig = async (): Promise<void> => {
+    try {
+      // Reload the complete configuration
+      currentCompleteConfig = await loadWebappConfig();
+      
+      // Update managers with new configuration if they exist
+      if (mosquittoManager) {
+        // Restart mosquitto to apply new bridge configurations
+        await mosquittoManager.restart();
+      }
+    } catch (error) {
+      console.error('Failed to reload complete config:', error);
       throw error;
     }
   };
@@ -250,6 +295,7 @@ function plugin(app: PluginServerApp): Plugin {
           
           const bridge = req.body;
           await bridgeManager.addBridge(bridge);
+          await reloadCompleteConfig();
           res.json({ success: true, message: 'Bridge added successfully' });
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -266,6 +312,7 @@ function plugin(app: PluginServerApp): Plugin {
           const { bridgeId } = req.params;
           const bridge = req.body;
           await bridgeManager.updateBridge(bridgeId, bridge);
+          await reloadCompleteConfig();
           res.json({ success: true, message: 'Bridge updated successfully' });
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -281,6 +328,7 @@ function plugin(app: PluginServerApp): Plugin {
           
           const { bridgeId } = req.params;
           await bridgeManager.removeBridge(bridgeId);
+          await reloadCompleteConfig();
           res.json({ success: true, message: 'Bridge deleted successfully' });
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
